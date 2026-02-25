@@ -14,12 +14,18 @@ cat > ~/.local/bin/setup-git-signing.sh << 'EOF'
 #!/bin/bash
 FLAG="$HOME/.config/git/.signing-configured"
 
-# Se já foi configurado, sai silenciosamente
 if [ -f "$FLAG" ]; then
     exit 0
 fi
 
-export SSH_AUTH_SOCK=$(ls /tmp/vscode-ssh-auth-*.sock 2>/dev/null | head -1)
+# Aguarda o agente SSH do VS Code ficar disponível (até 30s)
+for i in $(seq 1 15); do
+    export SSH_AUTH_SOCK=$(ls /tmp/vscode-ssh-auth-*.sock 2>/dev/null | head -1)
+    if ssh-add -L &>/dev/null; then
+        break
+    fi
+    sleep 2
+done
 
 if ! ssh-add -L &>/dev/null; then
     echo "⚠️  Agent SSH não disponível. Assinatura não configurada."
@@ -37,14 +43,16 @@ echo "diego.hat7@gmail.com namespaces=\"git\" $(cat ~/.ssh/id_ed25519.pub)" \
     > ~/.config/git/allowed_signers
 git config --global gpg.ssh.allowedSignersFile ~/.config/git/allowed_signers
 
-# Marca como configurado
 touch "$FLAG"
 echo "✅ Assinatura SSH configurada"
 EOF
 
 chmod +x ~/.local/bin/setup-git-signing.sh
 
-# ─── .bashrc: SSH_AUTH_SOCK + helper no terminal ──────────────
+# Roda em background — não bloqueia o dotfiles e espera o agente SSH
+~/.local/bin/setup-git-signing.sh &
+
+# ─── .bashrc: só exporta o SSH_AUTH_SOCK ──────────────────────
 BASHRC="$HOME/.bashrc"
 
 if ! grep -qF "vscode-ssh-auth" "$BASHRC" 2>/dev/null; then
@@ -52,9 +60,6 @@ if ! grep -qF "vscode-ssh-auth" "$BASHRC" 2>/dev/null; then
 
 # VS Code SSH agent forwarding (dev container)
 export SSH_AUTH_SOCK=$(ls /tmp/vscode-ssh-auth-*.sock 2>/dev/null | head -1)
-
-# Configura assinatura SSH ao abrir terminal
-~/.local/bin/setup-git-signing.sh
 EOF
 fi
 
