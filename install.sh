@@ -7,17 +7,7 @@ echo "🔧 Configurando dotfiles..."
 git config --global user.email "diego.hat7@gmail.com"
 git config --global user.name "diegohat"
 
-# ─── SSH_AUTH_SOCK dinâmico (VS Code dev containers no macOS) ─
-BASHRC="$HOME/.bashrc"
-SOCK_LINE='export SSH_AUTH_SOCK=$(ls /tmp/vscode-ssh-auth-*.sock 2>/dev/null | head -1)'
-
-if ! grep -qF "vscode-ssh-auth" "$BASHRC" 2>/dev/null; then
-    echo "" >> "$BASHRC"
-    echo "# VS Code SSH agent forwarding (dev container)" >> "$BASHRC"
-    echo "$SOCK_LINE" >> "$BASHRC"
-fi
-
-# ─── Instala helper de assinatura SSH (chamado no postAttach) ─
+# ─── Helper de assinatura SSH ─────────────────────────────────
 mkdir -p ~/.local/bin
 
 cat > ~/.local/bin/setup-git-signing.sh << 'EOF'
@@ -44,5 +34,19 @@ echo "✅ Assinatura SSH configurada"
 EOF
 
 chmod +x ~/.local/bin/setup-git-signing.sh
+
+# ─── .bashrc: SSH_AUTH_SOCK + helper no terminal ──────────────
+BASHRC="$HOME/.bashrc"
+
+if ! grep -qF "vscode-ssh-auth" "$BASHRC" 2>/dev/null; then
+    cat >> "$BASHRC" << 'EOF'
+
+# VS Code SSH agent forwarding (dev container)
+export SSH_AUTH_SOCK=$(ls /tmp/vscode-ssh-auth-*.sock 2>/dev/null | head -1)
+
+# Configura assinatura SSH ao abrir terminal
+~/.local/bin/setup-git-signing.sh
+EOF
+fi
 
 echo "✅ Dotfiles configurados com sucesso!"
