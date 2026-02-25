@@ -17,19 +17,20 @@ if ! grep -qF "vscode-ssh-auth" "$BASHRC" 2>/dev/null; then
     echo "$SOCK_LINE" >> "$BASHRC"
 fi
 
-# Aplica na sessão atual
+# ─── Instala helper de assinatura SSH (chamado no postAttach) ─
+mkdir -p ~/.local/bin
+
+cat > ~/.local/bin/setup-git-signing.sh << 'EOF'
+#!/bin/bash
 export SSH_AUTH_SOCK=$(ls /tmp/vscode-ssh-auth-*.sock 2>/dev/null | head -1)
 
-# ─── Assinatura SSH ───────────────────────────────────────────
-mkdir -p ~/.ssh ~/.config/git
-
-if ssh-add -L &>/dev/null; then
-    ssh-add -L > ~/.ssh/id_ed25519.pub
-    echo "✅ Chave pública exportada do agent"
-else
+if ! ssh-add -L &>/dev/null; then
     echo "⚠️  Agent SSH não disponível. Assinatura não configurada."
     exit 0
 fi
+
+mkdir -p ~/.ssh ~/.config/git
+ssh-add -L > ~/.ssh/id_ed25519.pub
 
 git config --global gpg.format ssh
 git config --global user.signingkey ~/.ssh/id_ed25519.pub
@@ -38,5 +39,10 @@ git config --global commit.gpgsign true
 echo "diego.hat7@gmail.com namespaces=\"git\" $(cat ~/.ssh/id_ed25519.pub)" \
     > ~/.config/git/allowed_signers
 git config --global gpg.ssh.allowedSignersFile ~/.config/git/allowed_signers
+
+echo "✅ Assinatura SSH configurada"
+EOF
+
+chmod +x ~/.local/bin/setup-git-signing.sh
 
 echo "✅ Dotfiles configurados com sucesso!"
