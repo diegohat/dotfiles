@@ -12,6 +12,13 @@ mkdir -p ~/.local/bin
 
 cat > ~/.local/bin/setup-git-signing.sh << 'EOF'
 #!/bin/bash
+FLAG="$HOME/.config/git/.signing-configured"
+
+# Se já foi configurado, sai silenciosamente
+if [ -f "$FLAG" ]; then
+    exit 0
+fi
+
 export SSH_AUTH_SOCK=$(ls /tmp/vscode-ssh-auth-*.sock 2>/dev/null | head -1)
 
 if ! ssh-add -L &>/dev/null; then
@@ -30,6 +37,8 @@ echo "diego.hat7@gmail.com namespaces=\"git\" $(cat ~/.ssh/id_ed25519.pub)" \
     > ~/.config/git/allowed_signers
 git config --global gpg.ssh.allowedSignersFile ~/.config/git/allowed_signers
 
+# Marca como configurado
+touch "$FLAG"
 echo "✅ Assinatura SSH configurada"
 EOF
 
